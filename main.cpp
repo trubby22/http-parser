@@ -16,9 +16,9 @@ using namespace std;
 constexpr int MAX_STRINGS = 15;
 constexpr int MAX_LINES = 15;
 constexpr int MAX_LENGTH = 300;
-constexpr int MAX_HEADERS_SIZE = 50;
-constexpr int MAX_BODY_SIZE = 50;
-constexpr int MAX_REQUEST_SIZE = 4'000;
+constexpr int MAX_HEADERS = 50;
+constexpr int MAX_BODY = 50;
+constexpr int MAX_REQUEST = 4'000;
 
 constexpr char request[] = "POST /submit-form HTTP/1.1\n"
     "Host: www.example.com\n"
@@ -475,14 +475,14 @@ void parse_http_request_stack_copy(const char *text) {
     strcpy(start_line, lines[0]);
 
     int headers_size = blank_ix - 1;
-    char headers[MAX_HEADERS_SIZE][MAX_LENGTH] = {0};
+    char headers[MAX_HEADERS][MAX_LENGTH] = {0};
     for (int i = 0; i < headers_size; i++) {
         strcpy(headers[i], lines[1 + i]);
     }
 
     // size = end_exclusive - start_inclusive;
     int body_size = snd_blank_ix - (blank_ix + 1);
-    char body[MAX_BODY_SIZE][MAX_LENGTH] = {0};
+    char body[MAX_BODY][MAX_LENGTH] = {0};
     for (int i = 0; i < body_size; i++) {
         strcpy(body[i], lines[(blank_ix + 1) + i]);
     }
@@ -590,7 +590,7 @@ void indices_stack(const char *request) {
     int j = 0;
     indices[j++] = -1;
     int i = 0;
-    while (i < MAX_REQUEST_SIZE && request[i] != '\0') {
+    while (i < MAX_REQUEST && request[i] != '\0') {
         if (request[i] == '\n') {
             indices[j++] = i;
         }
@@ -719,7 +719,7 @@ void indices_stack_v2(const char *request) {
     int indices_size = 0;
     indices[indices_size++] = -1;
     int i = 0;
-    while (i < MAX_REQUEST_SIZE && request[i] != '\0') {
+    while (i < MAX_REQUEST && request[i] != '\0') {
         if (request[i] == '\n') {
             indices[indices_size++] = i;
         }
@@ -761,14 +761,305 @@ void indices_stack_v2(const char *request) {
     // print_indices_stack(body, body_size, request);
 }
 
+void copying_heap_v3(const string &request) {
+    cout << request << endl;
+    cout << endl;
+
+    istringstream stream(request);
+    string line;
+    vector<string> lines;
+    int blank_ix = 0;
+    int i = 0;
+
+    while (getline(stream, line)) {
+        lines.push_back(line);
+        if (line == "") {
+            blank_ix = i;
+        }
+        i++;
+    }
+    if (blank_ix == 0) {
+        blank_ix = i;
+    }
+
+    string start_line;
+    vector<string> headers;
+    vector<string> body;
+    i = 0;
+    for (const auto& l : lines) {
+        if (i == 0) {
+            start_line = l;
+        } else if (i < blank_ix) {
+            headers.push_back(l);
+        } else if (i > blank_ix) {
+            body.push_back(l);
+        }
+        i++;
+    }
+
+    istringstream start_line_stream(start_line);
+    string word;
+    vector<string> words;
+    while (start_line_stream >> word) { // The stream operator (>>) extracts words separated by whitespace
+        words.push_back(word);
+    }
+
+    string method;
+    string target;
+    string http_version;
+    i = 0;
+    for (const auto& w : words) {
+        if (i == 0) {
+            method = w;
+        } else if (i == 1) {
+            target = w;
+        } else if (i == 2) {
+            http_version = w;
+        }
+        i++;
+    }
+
+    vector<string> header_keys;
+    vector<string> header_vals;
+    i = 0;
+    for (const auto& h : headers) {
+        string delimiter = ": ";
+        regex regex(delimiter);
+        sregex_token_iterator iter(h.begin(), h.end(), regex, -1);
+        sregex_token_iterator end;
+        vector<string> parts(iter, end);
+
+        int j = 0;
+        for (const auto& p : parts) {
+            if (j == 0) {
+                header_keys.push_back(p);
+            } else if (j == 1) {
+                header_vals.push_back(p);
+            } else {
+                // cout << "Something went wrong!" << endl;
+                throw runtime_error("Something went wrong!");
+            }
+            j++;
+        }
+        i++;
+    }
+
+    cout << "method: " << method << endl;
+    cout << "target: " << target << endl;
+    cout << "http_version: " << http_version << endl;
+    for (int i = 0; i < header_keys.size(); i++) {
+        cout << "header key: " << header_keys[i] << endl;
+        cout << "header val: " << header_vals[i] << endl;
+    }
+    for (const auto& b : body) {
+        cout << "body: " << b << endl;
+    }
+}
+
+void print_indices_heap_v3(vector<int> indices, const string &request) {
+    for (int i = 0; i < indices.size(); i += 2) {
+        int length = indices[i + 1] - indices[i];
+        print_raw(request.substr(indices[i], length));
+        cout << endl;
+    }
+}
+
+void indices_heap_v3(const string &request) {
+    // cout << request << endl;
+    // cout << endl;
+
+    vector<int> indices;
+    for (size_t i = 0; i < request.size(); i++) {
+        if (request[i] == '\n') {
+            if (indices.size() == 0) {
+                indices.push_back(0);
+            } else {
+                indices.push_back(indices.back() + 1);
+            }
+            indices.push_back(i);
+        }
+    }
+    indices.push_back(indices.back() + 1);
+    indices.push_back(request.size());
+
+    int blank_ix = 0;
+    for (int i = 0; i < indices.size(); i += 2) {
+        if (indices[i] == indices[i + 1]) {
+            blank_ix = i;
+        }
+    }
+
+    vector<int> start_line;
+    vector<int> headers;
+    vector<int> body;
+    for (int i = 0; i < indices.size(); i += 2) {
+        if (i == 0) {
+            start_line.push_back(indices[i]);
+            start_line.push_back(indices[i + 1]);
+        } else if (i < blank_ix) {
+            headers.push_back(indices[i]);
+            headers.push_back(indices[i + 1]);
+        } else if (i > blank_ix) {
+            body.push_back(indices[i]);
+            body.push_back(indices[i + 1]);
+        }
+    }
+
+    vector<int> start_line_spaces;
+
+    for (int i = start_line[0]; i < start_line[1]; i++) {
+        char c = request[i];
+        if (c == ' ') {
+            start_line_spaces.push_back(i);
+        }
+    }
+
+    vector<int> method = {start_line[0], start_line_spaces[0]};
+    vector<int> target = {start_line_spaces[0] + 1, start_line_spaces[1]};
+    vector<int> http_version = {start_line_spaces[1] + 1, start_line[1]};
+
+    vector<int> header_keys;
+    vector<int> header_vals;
+
+    for (int i = 0; i < headers.size(); i += 2) {
+        for (int j = headers[i]; j < headers[i + 1]; j++) {
+            if (request[j] == ':' && request[j + 1] == ' ') {
+                header_keys.push_back(headers[i]);
+                header_keys.push_back(j);
+
+                header_vals.push_back(j + 2);
+                header_vals.push_back(headers[i + 1]);
+                break;
+            }
+        }
+    }
+
+    // cout << "method" << endl;
+    // print_indices_heap_v3(method, request);
+    // cout << "target" << endl;
+    // print_indices_heap_v3(target, request);
+    // cout << "http_version" << endl;
+    // print_indices_heap_v3(http_version, request);
+    // cout << "header keys" << endl;
+    // print_indices_heap_v3(header_keys, request);
+    // cout << "header vals" << endl;
+    // print_indices_heap_v3(header_vals, request);
+    // cout << "body" << endl;
+    // print_indices_heap_v3(body, request);
+}
+
+void print_indices_stack_v3(int indices[], int indices_size, const char *request) {
+    for (int i = 0; i < indices_size; i += 2) {
+        int length = indices[i + 1] - indices[i];
+        print_raw(request, indices[i], length);
+        cout << endl;
+    }
+}
+
+void indices_stack_v3(const char *request) {
+    // cout << request << endl;
+    // cout << endl;
+
+    int indices[MAX_LINES * 2] = {0};
+    int indices_size = 0;
+    int i = 0;
+    while (i < MAX_REQUEST && request[i] != '\0') {
+        if (request[i] == '\n') {
+            if (indices_size == 0) {
+                indices[indices_size++] = 0;
+            } else {
+                indices[indices_size++] = indices[indices_size - 1] + 1;
+            }
+            indices[indices_size++] = i;
+        }
+        i++;
+    }
+    indices[indices_size++] = indices[indices_size - 1] + 1;
+    indices[indices_size++] = i;
+
+    int blank_ix = 0;
+    for (int i = 0; i < indices_size; i += 2) {
+        if (indices[i] == indices[i + 1]) {
+            blank_ix = i;
+        }
+    }
+
+    int start_line[2];
+    int headers[MAX_HEADERS * 2];
+    int body[MAX_BODY * 2];
+
+    int start_line_size = 0;
+    int headers_size = 0;
+    int body_size = 0;
+
+    for (int i = 0; i < indices_size; i += 2) {
+        if (i == 0) {
+            start_line[start_line_size++] = indices[i];
+            start_line[start_line_size++] = indices[i + 1];
+        } else if (i < blank_ix) {
+            headers[headers_size++] = indices[i];
+            headers[headers_size++] = indices[i + 1];
+        } else if (i > blank_ix) {
+            body[body_size++] = indices[i];
+            body[body_size++] = indices[i + 1];
+        }
+    }
+
+    int start_line_spaces[2];
+    int start_line_spaces_size = 0;
+
+    for (int i = start_line[0]; i < start_line[1]; i++) {
+        char c = request[i];
+        if (c == ' ') {
+            start_line_spaces[start_line_spaces_size++] = i;
+        }
+    }
+
+    int method[2] = {start_line[0], start_line_spaces[0]};
+    int target[2] = {start_line_spaces[0] + 1, start_line_spaces[1]};
+    int http_version[2] = {start_line_spaces[1] + 1, start_line[1]};
+
+    int header_keys[MAX_HEADERS * 2];
+    int header_vals[MAX_HEADERS * 2];
+
+    int header_keys_size = 0;
+    int header_vals_size = 0;
+
+    for (int i = 0; i < headers_size; i += 2) {
+        for (int j = headers[i]; j < headers[i + 1]; j++) {
+            if (request[j] == ':' && request[j + 1] == ' ') {
+                header_keys[header_keys_size++] = headers[i];
+                header_keys[header_keys_size++] = j;
+
+                header_vals[header_vals_size++] = j + 2;
+                header_vals[header_vals_size++] = headers[i + 1];
+                break;
+            }
+        }
+    }
+
+    // cout << "method" << endl;
+    // print_indices_stack_v3(method, 2, request);
+    // cout << "target" << endl;
+    // print_indices_stack_v3(target, 2, request);
+    // cout << "http_version" << endl;
+    // print_indices_stack_v3(http_version, 2, request);
+    // cout << "header keys" << endl;
+    // print_indices_stack_v3(header_keys, header_keys_size, request);
+    // cout << "header vals" << endl;
+    // print_indices_stack_v3(header_vals, header_vals_size, request);
+    // cout << "body" << endl;
+    // print_indices_stack_v3(body, body_size, request);
+}
+
 void bench() {
     int num_iters = 10'000;
     string str_request = string(request);
     for (int i = 0; i < num_iters; i++) {
         #pragma clang optimize off
         // indices_heap(str_request);
-        // indices_heap_v2(str_request);
-        indices_stack_v2(request);
+        // indices_heap_v3(str_request);
+        indices_stack_v3(request);
         #pragma clang optimize on
         __asm__ __volatile__("" ::: "memory");
     }
@@ -779,5 +1070,6 @@ int main(int argc, const char * argv[]) {
     // string str_request = string(request);
     // indices_stack(request);
     // indices_stack_v2(request);
+    // indices_stack_v3(request);
     return 0;
 }
