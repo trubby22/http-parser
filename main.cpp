@@ -28,7 +28,8 @@ constexpr char request[] = "POST /submit-form HTTP/1.1\n"
     "Accept: text/html, application/xhtml+xml, application/xml;q=0.9, */*;q=0.8\n"
     "Accept-Language: en-US, en;q=0.5\n"
     "\n"
-    "name=John+Doe&email=john.doe%40example.com";
+    "name=John+Doe&email=john.doe%40example.com\n"
+    "foo bar baz";
 
 #define REQ                                                                                                                        \
     "GET /wp-content/uploads/2010/03/hello-kitty-darth-vader-pink.jpg HTTP/1.1\r\n"                                                \
@@ -604,15 +605,170 @@ void indices_stack(const char *request) {
     // }
 }
 
+void copying_heap_v2(const string &request) {
+    cout << request << endl;
+    cout << endl;
+
+    istringstream stream(request);
+    string line;
+    vector<string> lines;
+
+    string start_line;
+    vector<string> headers;
+    vector<string> body;
+
+    int blank_ix = 0;
+    int i = 0;
+
+    while (getline(stream, line)) {
+        lines.push_back(line);
+        if (line == "") {
+            blank_ix = i;
+        }
+        i++;
+    }
+
+    if (blank_ix == 0) {
+        blank_ix = i;
+    }
+
+    i = 0;
+    for (const auto& l : lines) {
+        if (i == 0) {
+            start_line = l;
+        } else if (i < blank_ix) {
+            headers.push_back(l);
+        } else if (i > blank_ix) {
+            body.push_back(l);
+        }
+        i++;
+    }
+
+    cout << "start line: " << start_line << endl;
+    for (const auto& h : headers) {
+        cout << "header: " << h << endl;
+    }
+    for (const auto& b : body) {
+        cout << "body: " << b << endl;
+    }
+}
+
+void print_indices_heap(vector<int> indices, const string &request) {
+    for (int i = 0; i < indices.size() - 1; i++) {
+        int length = indices[i + 1] - indices[i] - 1;
+        print_raw(request.substr(indices[i] + 1, length));
+        cout << endl;
+    }
+}
+
+void indices_heap_v2(const string &request) {
+    // cout << request << endl;
+    // cout << endl;
+
+    vector<int> indices;
+    indices.push_back(-1);
+    for (size_t i = 0; i < request.size(); ++i) {
+        if (request[i] == '\n') {
+            indices.push_back(i);
+        }
+    }
+    indices.push_back(request.size());
+
+    int blank_ix = 0;
+    for (int i = 0; i < indices.size() - 1; i++) {
+        if (indices[i + 1] == indices[i] + 1) {
+            blank_ix = i;
+        }
+    }
+
+    vector<int> start_line;
+    vector<int> headers;
+    vector<int> body;
+    for (int i = 0; i < indices.size(); i++) {
+        if (i == 0) {
+            start_line.push_back(indices[i]);
+            start_line.push_back(indices[i + 1]);
+        } else if (i <= blank_ix) {
+            headers.push_back(indices[i]);
+        } else if (i > blank_ix) {
+            body.push_back(indices[i]);
+        }
+    }
+
+    // cout << "start_line" << endl;
+    // print_indices_heap(start_line, request);
+    // cout << "headers" << endl;
+    // print_indices_heap(headers, request);
+    // cout << "body" << endl;
+    // print_indices_heap(body, request);
+}
+
+void print_indices_stack(int indices[], int indices_size, const char *request) {
+    for (int i = 0; i < indices_size - 1; i++) {
+        int length = indices[i + 1] - indices[i] - 1;
+        print_raw(request, indices[i] + 1, length);
+        cout << endl;
+    }
+}
+
+void indices_stack_v2(const char *request) {
+    // cout << request << endl;
+    // cout << endl;
+
+    int indices[MAX_LINES] = {0};
+    int indices_size = 0;
+    indices[indices_size++] = -1;
+    int i = 0;
+    while (i < MAX_REQUEST_SIZE && request[i] != '\0') {
+        if (request[i] == '\n') {
+            indices[indices_size++] = i;
+        }
+        i++;
+    }
+    indices[indices_size++] = i;
+
+    int blank_ix = 0;
+    for (int i = 0; i < indices_size - 1; i++) {
+        if (indices[i + 1] == indices[i] + 1) {
+            blank_ix = i;
+        }
+    }
+
+    int start_line[MAX_LINES] = {0};
+    int headers[MAX_LINES] = {0};
+    int body[MAX_LINES] = {0};
+
+    int start_line_size = 0;
+    int headers_size = 0;
+    int body_size = 0;
+
+    for (int i = 0; i < indices_size; i++) {
+        if (i == 0) {
+            start_line[start_line_size++] = indices[i];
+            start_line[start_line_size++] = indices[i + 1];
+        } else if (i <= blank_ix) {
+            headers[headers_size++] = indices[i];
+        } else if (i > blank_ix) {
+            body[body_size++] = indices[i];
+        }
+    }
+
+    // cout << "start_line" << endl;
+    // print_indices_stack(start_line, start_line_size, request);
+    // cout << "headers" << endl;
+    // print_indices_stack(headers, headers_size, request);
+    // cout << "body" << endl;
+    // print_indices_stack(body, body_size, request);
+}
+
 void bench() {
     int num_iters = 10'000;
     string str_request = string(request);
     for (int i = 0; i < num_iters; i++) {
         #pragma clang optimize off
-        // parse_http_request_very_simple(REQ);
-        // parse_http_request_stack(REQ);
         // indices_heap(str_request);
-        indices_stack(request);
+        // indices_heap_v2(str_request);
+        indices_stack_v2(request);
         #pragma clang optimize on
         __asm__ __volatile__("" ::: "memory");
     }
@@ -620,7 +776,8 @@ void bench() {
 
 int main(int argc, const char * argv[]) {
     bench();
-    // parse_http_request_stack_indices(request);
+    // string str_request = string(request);
     // indices_stack(request);
+    // indices_stack_v2(request);
     return 0;
 }
