@@ -4,7 +4,7 @@ project(http-parser)
 set(CMAKE_C_COMPILER "/usr/local/opt/llvm/bin/clang")
 set(CMAKE_CXX_COMPILER "/usr/local/opt/llvm/bin/clang++")
 
-set(CMAKE_BUILD_TYPE Debug)
+set(CMAKE_BUILD_TYPE Release)
 set(CMAKE_CXX_STANDARD 23)
 
 find_package(Boost 1.85 REQUIRED)

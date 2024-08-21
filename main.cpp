@@ -31,6 +31,21 @@ constexpr char request[] = "POST /submit-form HTTP/1.1\n"
     "name=John+Doe&email=john.doe%40example.com\n"
     "foo bar baz";
 
+constexpr char pico_request[] = "GET /wp-content/uploads/2010/03/hello-kitty-darth-vader-pink.jpg HTTP/1.1\n"
+    "Host: www.kittyhell.com\n"
+    "User-Agent: Mozilla/5.0 (Macintosh; U; Intel Mac OS X 10.6; ja-JP-mac; rv:1.9.2.3) Gecko/20100401 Firefox/3.6.3 "
+    "Pathtraq/0.9\n"
+    "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\n"
+    "Accept-Language: ja,en-us;q=0.7,en;q=0.3\n"
+    "Accept-Encoding: gzip,deflate\n"
+    "Accept-Charset: Shift_JIS,utf-8;q=0.7,*;q=0.7\n"
+    "Keep-Alive: 115\n"
+    "Connection: keep-alive\n"
+    "Cookie: wp_ozh_wsa_visits=2; wp_ozh_wsa_visit_lasttime=xxxxxxxxxx; "
+    "__utma=xxxxxxxxx.xxxxxxxxxx.xxxxxxxxxx.xxxxxxxxxx.xxxxxxxxxx.x; "
+    "__utmz=xxxxxxxxx.xxxxxxxxxx.x.x.utmccn=(referral)|utmcsr=reader.livedoor.com|utmcct=/reader/|utmcmd=referral\n"
+    "\n";
+
 #define REQ                                                                                                                        \
     "GET /wp-content/uploads/2010/03/hello-kitty-darth-vader-pink.jpg HTTP/1.1\r\n"                                                \
     "Host: www.kittyhell.com\r\n"                                                                                                  \
@@ -1053,13 +1068,13 @@ void indices_stack_v3(const char *request) {
 }
 
 void bench() {
-    int num_iters = 10'000;
-    string str_request = string(request);
+    int num_iters = 100'000;
+    // string str_request = string(request);
     for (int i = 0; i < num_iters; i++) {
         #pragma clang optimize off
         // indices_heap(str_request);
         // indices_heap_v3(str_request);
-        indices_stack_v3(request);
+        indices_stack_v3(pico_request);
         #pragma clang optimize on
         __asm__ __volatile__("" ::: "memory");
     }
@@ -1068,8 +1083,9 @@ void bench() {
 int main(int argc, const char * argv[]) {
     bench();
     // string str_request = string(request);
+    // string str_pico_request = string(pico_request);
     // indices_stack(request);
     // indices_stack_v2(request);
-    // indices_stack_v3(request);
+    // indices_stack_v3(pico_request);
     return 0;
 }
